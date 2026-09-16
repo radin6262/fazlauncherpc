@@ -38,14 +38,14 @@ jobs:
 
       - name: Zip Release Directory
         run: |
-          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "fazlauncher-x64.zip"
+          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "app-windows-release.zip"
         shell: pwsh
 
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Windows-App-Build-${{ github.run_number }}
-          path: fazlauncher-x64.zip
+          path: app-windows-release.zip
           if-no-files-found: error
 
   release:
@@ -55,6 +55,10 @@ jobs:
     if: ${{ github.actor == github.repository_owner && inputs.release_draft }}
 
     steps:
+      # FIX: Checkout the repository so gh has a valid .git context
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
       - name: Download Windows Artifact
         uses: actions/download-artifact@v4
         with:
@@ -66,7 +70,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "v${{ github.run_number }}" \
-            artifact/fazlauncher-x64.zip \
+            artifact/app-windows-release.zip \
             --draft \
             --title "Windows Desktop - Build #${{ github.run_number }}" \
             --notes "Automated Windows desktop release.
