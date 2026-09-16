@@ -36,16 +36,16 @@ jobs:
       - name: Build Windows Release
         run: flutter build windows --release
 
-      - name: Compress Windows Build
+      - name: Zip Release Directory
         run: |
-          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "app-windows-release.zip"
+          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "fazlauncher-x64.zip"
         shell: pwsh
 
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Windows-App-Build-${{ github.run_number }}
-          path: app-windows-release.zip
+          path: fazlauncher-x64.zip
           if-no-files-found: error
 
   release:
@@ -66,7 +66,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "v${{ github.run_number }}" \
-            artifact/app-windows-release.zip \
+            artifact/fazlauncher-x64.zip \
             --draft \
             --title "Windows Desktop - Build #${{ github.run_number }}" \
             --notes "Automated Windows desktop release.
