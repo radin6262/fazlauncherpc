@@ -39,6 +39,18 @@ class _HomeScreenState extends State<HomeScreen> {
         windowsUrl: "https://github.com/radin6262/FazLauncherSite/raw/refs/heads/main/FiveNightsatFreddys4.zip?download=true",
         image: "assets/images/fnaf4.png",
     ),
+    Game(
+      id: "fnaf5",
+      name: "Five Nights at Freddy's: Sister Location",
+      windowsUrl: "https://github.com/radin6262/FazLauncherSite/raw/refs/heads/main/SisterLocation.zip?download=true",
+      image: "assets/images/slcard.png",
+    ),
+    Game(
+      id: "fnafworld",
+      name: "Five Nights at Freddy's World",
+      windowsUrl: "https://github.com/radin6262/FazLauncherSite/raw/refs/heads/main/fnaf-world.zip?download=true",
+      image: "assets/images/fnaf6card.png",
+    ),
   ];
 
   final GameService _gameService = GameService();
