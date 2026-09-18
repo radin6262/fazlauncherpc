@@ -46,6 +46,12 @@ class _HomeScreenState extends State<HomeScreen> {
       image: "assets/images/slcard.png",
     ),
     Game(
+      id: "fnaf6",
+      name: "Five Nights at Freddy's 6",
+      windowsUrl: "https://github.com/radin6262/FazLauncherSite/raw/refs/heads/main/pizzeria-simulator.zip?download=true",
+      image: "assets/images/fnaf6card.png",
+    ),
+    Game(
       id: "fnafworld",
       name: "Five Nights at Freddy's World",
       windowsUrl: "https://github.com/radin6262/FazLauncherSite/raw/refs/heads/main/fnaf-world.zip?download=true",
