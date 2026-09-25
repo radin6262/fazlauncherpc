@@ -92,7 +92,7 @@ class _HomeScreenState extends State<HomeScreen>
     "fnaf4": "assets/splash/fnaf4.png",
     "fnaf5": "assets/splash/fnaf5.png",
     "fnaf6": "assets/splash/fnaf6.png",
-    "fnafworld": "assets/splash/fnafworld.png",
+    "fnafworld": "assets/splash/world.png",
   };
 
   // ============================================================
