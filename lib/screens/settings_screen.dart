@@ -36,8 +36,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       "SpringTrap": "assets/bg/sp1.png"
     },
     "Set 4: FNAF 4": {
-      "Fazbear Entertainment": "assets/bg/FazBearEnterTainment.png",
-      "Fazbear Shed": "assets/bg/fazbearshed.png",
       "FNAF 4 Background": "assets/bg/fnaf4bg2.png",
       "Nightmare Bonnie": "assets/bg/nightmarebonnie4.png",
       "Nightmare Chica": "assets/bg/nightmarechica4.png",
@@ -53,6 +51,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     },
     "Set 6: FNAF 6": {
       "Rockstars": "assets/bg/fnaf6.png",
+      "Fazbear Entertainment": "assets/bg/FazBearEnterTainment.png",
+      "Fazbear Shed": "assets/bg/fazbearshed.png",
     },
     "Set 7: Default": {
       "Static Noise": "assets/bg/background.gif"

@@ -65,7 +65,7 @@ class _HomeScreenState extends State<HomeScreen>
       name: "Five Nights at Freddy's World",
       windowsUrl:
       "https://github.com/radin6262/FazLauncherSite/raw/refs/heads/main/fnaf-world.zip?download=true",
-      image: "assets/images/fnaf6card.png",
+      image: "assets/images/world.png",
     ),
   ];
 
