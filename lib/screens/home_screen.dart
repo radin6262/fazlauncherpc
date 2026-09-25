@@ -16,7 +16,11 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
+  // ============================================================
+  // Games
+  // ============================================================
+
   final List<Game> games = [
     Game(
       id: "fnaf1",
@@ -69,9 +73,40 @@ class _HomeScreenState extends State<HomeScreen>
     ),
   ];
 
+  // ============================================================
+  // Dedicated launch splash images
+  //
+  // These are completely separate from Game.image.
+  //
+  // Game.image:
+  //     normal game card
+  //
+  // This map:
+  //     4-second full-screen launch splash
+  // ============================================================
+
+  final Map<String, String> _launchSplashImages = {
+    "fnaf1": "assets/splash/fnaf1.png",
+    "fnaf2": "assets/splash/fnaf2.png",
+    "fnaf3": "assets/splash/fnaf3.png",
+    "fnaf4": "assets/splash/fnaf4.png",
+    "fnaf5": "assets/splash/fnaf5.png",
+    "fnaf6": "assets/splash/fnaf6.png",
+    "fnafworld": "assets/splash/fnafworld.png",
+  };
+
+  // ============================================================
+  // Services
+  // ============================================================
+
   final GameService _gameService = GameService();
 
+  // ============================================================
+  // State
+  // ============================================================
+
   int _selectedIndex = 0;
+
   String? _bgImage;
 
   final Map<String, bool> _installedMap = {};
@@ -82,20 +117,48 @@ class _HomeScreenState extends State<HomeScreen>
 
   bool _musicEnabled = true;
 
+  // ============================================================
+  // Game launch splash
+  // ============================================================
+
+  late final AnimationController _launchSplashController;
+
+  static const Duration _launchSplashDuration =
+  Duration(seconds: 4);
+
+  bool _showLaunchSplash = false;
+
+  Game? _launchSplashGame;
+
+  // ============================================================
+  // Init
+  // ============================================================
+
   @override
   void initState() {
     super.initState();
 
     WidgetsBinding.instance.addObserver(this);
 
+    _launchSplashController = AnimationController(
+      vsync: this,
+      duration: _launchSplashDuration,
+    );
+
     _loadConfig();
     _loadMusicSetting();
     _checkAllInstallations();
   }
 
+  // ============================================================
+  // Dispose
+  // ============================================================
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+
+    _launchSplashController.dispose();
 
     super.dispose();
   }
@@ -110,8 +173,6 @@ class _HomeScreenState extends State<HomeScreen>
       ) {
     super.didChangeAppLifecycleState(state);
 
-    // When coming back from SettingsScreen or restoring the
-    // launcher window, re-read the saved music setting.
     if (state == AppLifecycleState.resumed) {
       _loadMusicSetting();
     }
@@ -148,7 +209,6 @@ class _HomeScreenState extends State<HomeScreen>
         _musicEnabled = enabled;
       });
 
-      // Synchronize actual playback with the saved setting.
       if (enabled) {
         await MusicService.play();
       } else {
@@ -166,7 +226,7 @@ class _HomeScreenState extends State<HomeScreen>
   // ============================================================
 
   Future<void> _checkAllInstallations() async {
-    for (var game in games) {
+    for (final game in games) {
       final installed =
       await _gameService.isGameInstalled(game);
 
@@ -180,69 +240,187 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // ============================================================
+  // Launch splash
+  //
+  // ONLY the following is displayed:
+  //
+  //   - Full-screen game-specific splash image
+  //   - Circular progress ring in bottom-left
+  //
+  // No text.
+  // No countdown.
+  // No linear progress bar.
+  // No controls.
+  // ============================================================
+
+  Future<void> _showGameLaunchSplash(
+      Game game,
+      Future<void> Function() launchAction,
+      ) async {
+    if (!mounted) return;
+
+    if (_showLaunchSplash) {
+      return;
+    }
+
+    final splashImage =
+    _launchSplashImages[game.id];
+
+    if (splashImage == null ||
+        splashImage.isEmpty) {
+      debugPrint(
+        'LAUNCHER SPLASH: no splash image configured '
+            'for ${game.id}',
+      );
+
+      await launchAction();
+      return;
+    }
+
+    debugPrint(
+      'LAUNCHER SPLASH: ${game.id} -> $splashImage',
+    );
+
+    setState(() {
+      _showLaunchSplash = true;
+      _launchSplashGame = game;
+    });
+
+    try {
+      await _launchSplashController.forward(
+        from: 0.0,
+      );
+    } on TickerCanceled {
+      return;
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      _showLaunchSplash = false;
+      _launchSplashGame = null;
+    });
+
+    // Launch only after the full 4-second splash.
+    await launchAction();
+  }
+
+  // ============================================================
+  // Launch game
+  // ============================================================
+
+  Future<void> _launchInstalledGame(
+      Game game,
+      ) async {
+    if (!mounted) return;
+
+    try {
+      await _gameService.launchGame(game);
+
+      debugPrint(
+        'LAUNCHER: launched ${game.name}',
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content:
+          Text('Error launching game: $e'),
+        ),
+      );
+    }
+  }
+
+  // ============================================================
   // Play / Download
   // ============================================================
 
-  Future<void> _handlePlay(Game game) async {
+  Future<void> _handlePlay(
+      Game game,
+      ) async {
+    if (_isDownloading) return;
+
+    if (_showLaunchSplash) return;
+
     final isInstalled =
         _installedMap[game.id] ?? false;
 
+    // ==========================================================
+    // Already installed
+    // ==========================================================
+
     if (isInstalled) {
-      try {
-        await _gameService.launchGame(game);
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content:
-              Text('Error launching game: $e'),
-            ),
-          );
-        }
-      }
-    } else {
+      await _showGameLaunchSplash(
+        game,
+            () => _launchInstalledGame(game),
+      );
+
+      return;
+    }
+
+    // ==========================================================
+    // Download and install
+    // ==========================================================
+
+    if (!mounted) return;
+
+    setState(() {
+      _isDownloading = true;
+      _downloadingGameId = game.id;
+      _downloadProgress = 0.0;
+    });
+
+    try {
+      await _gameService.downloadAndInstall(
+        game,
+            (progress) {
+          if (!mounted) return;
+
+          setState(() {
+            _downloadProgress =
+                progress.clamp(0.0, 1.0);
+          });
+        },
+      );
+
+      if (!mounted) return;
+
       setState(() {
-        _isDownloading = true;
-        _downloadingGameId = game.id;
+        _installedMap[game.id] = true;
+      });
+
+      /*
+       * Download + installation is now complete.
+       *
+       * Hide the download state first, then show the
+       * dedicated 4-second launch splash.
+       */
+      setState(() {
+        _isDownloading = false;
+        _downloadingGameId = null;
         _downloadProgress = 0.0;
       });
 
-      try {
-        await _gameService.downloadAndInstall(
-          game,
-              (progress) {
-            if (mounted) {
-              setState(() {
-                _downloadProgress =
-                    progress;
-              });
-            }
-          },
-        );
+      await _showGameLaunchSplash(
+        game,
+            () => _launchInstalledGame(game),
+      );
+    } catch (e) {
+      if (!mounted) return;
 
-        if (mounted) {
-          setState(() {
-            _installedMap[game.id] =
-            true;
-          });
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content:
-              Text('Download failed: $e'),
-            ),
-          );
-        }
-      } finally {
-        if (mounted) {
-          setState(() {
-            _isDownloading = false;
-            _downloadingGameId = null;
-          });
-        }
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content:
+          Text('Download failed: $e'),
+        ),
+      );
+
+      setState(() {
+        _isDownloading = false;
+        _downloadingGameId = null;
+        _downloadProgress = 0.0;
+      });
     }
   }
 
@@ -250,15 +428,20 @@ class _HomeScreenState extends State<HomeScreen>
   // Remove
   // ============================================================
 
-  Future<void> _handleRemove(Game game) async {
+  Future<void> _handleRemove(
+      Game game,
+      ) async {
+    if (_isDownloading) return;
+
+    if (_showLaunchSplash) return;
+
     try {
       await _gameService.clearGame(game);
 
       if (!mounted) return;
 
       setState(() {
-        _installedMap[game.id] =
-        false;
+        _installedMap[game.id] = false;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -279,8 +462,116 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
+  // ============================================================
+  // Full-screen launch splash
+  // ============================================================
+
+  Widget _buildLaunchSplash() {
+    final game =
+        _launchSplashGame;
+
+    if (game == null) {
+      return const SizedBox.shrink();
+    }
+
+    final splashImage =
+    _launchSplashImages[game.id];
+
+    if (splashImage == null ||
+        splashImage.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Positioned.fill(
+      child: Material(
+        color: Colors.black,
+        child: AbsorbPointer(
+          absorbing: true,
+          child: AnimatedBuilder(
+            animation:
+            _launchSplashController,
+            builder: (
+                context,
+                child,
+                ) {
+              final progress =
+                  _launchSplashController
+                      .value;
+
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  // ==================================================
+                  // Dedicated splash image.
+                  //
+                  // NOT game.image.
+                  // ==================================================
+
+                  Image.asset(
+                    splashImage,
+                    fit: BoxFit.cover,
+                    errorBuilder: (
+                        context,
+                        error,
+                        stackTrace,
+                        ) {
+                      debugPrint(
+                        'LAUNCHER SPLASH IMAGE ERROR: '
+                            '$splashImage',
+                      );
+
+                      return Container(
+                        color: Colors.black,
+                      );
+                    },
+                  ),
+
+                  // ==================================================
+                  // ONLY UI ELEMENT:
+                  // circular progress ring
+                  // bottom-left
+                  // ==================================================
+
+                  Positioned(
+                    left: 24,
+                    bottom: 24,
+                    child: SizedBox(
+                      width: 64,
+                      height: 64,
+                      child:
+                      CircularProgressIndicator(
+                        value: progress,
+                        strokeWidth: 5,
+                        backgroundColor:
+                        Colors.black
+                            .withOpacity(
+                          0.45,
+                        ),
+                        valueColor:
+                        const AlwaysStoppedAnimation<
+                            Color>(
+                          Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // Build
+  // ============================================================
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+      BuildContext context,
+      ) {
     return Scaffold(
       body: Stack(
         children: [
@@ -291,9 +582,12 @@ class _HomeScreenState extends State<HomeScreen>
           Positioned.fill(
             child: AnimatedSwitcher(
               duration:
-              const Duration(milliseconds: 500),
+              const Duration(
+                milliseconds: 500,
+              ),
               child: Container(
-                key: ValueKey(_bgImage),
+                key:
+                ValueKey(_bgImage),
                 decoration:
                 BoxDecoration(
                   image:
@@ -306,7 +600,9 @@ class _HomeScreenState extends State<HomeScreen>
                     colorFilter:
                     ColorFilter.mode(
                       Colors.black
-                          .withOpacity(0.5),
+                          .withOpacity(
+                        0.5,
+                      ),
                       BlendMode.darken,
                     ),
                   ),
@@ -346,17 +642,24 @@ class _HomeScreenState extends State<HomeScreen>
                       Row(
                         children: [
                           IconButton(
-                            icon: const Icon(
+                            icon:
+                            const Icon(
                               Icons.collections,
                               color:
                               Colors.white70,
                               size: 28,
                             ),
-                            onPressed: () =>
-                                Navigator.push(
+                            onPressed:
+                            _showLaunchSplash ||
+                                _isDownloading
+                                ? null
+                                : () =>
+                                Navigator
+                                    .push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) =>
+                                    builder:
+                                        (_) =>
                                     const GalleryScreen(),
                                   ),
                                 ),
@@ -367,23 +670,28 @@ class _HomeScreenState extends State<HomeScreen>
                           ),
 
                           IconButton(
-                            icon: const Icon(
+                            icon:
+                            const Icon(
                               Icons.settings,
                               color:
                               Colors.white70,
                               size: 28,
                             ),
-                            onPressed: () async {
-                              await Navigator.push(
+                            onPressed:
+                            _showLaunchSplash ||
+                                _isDownloading
+                                ? null
+                                : () async {
+                              await Navigator
+                                  .push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) =>
+                                  builder:
+                                      (_) =>
                                   const SettingsScreen(),
                                 ),
                               );
 
-                              // Settings may have changed:
-                              // background and music.
                               await _loadConfig();
                               await _loadMusicSetting();
                             },
@@ -413,7 +721,10 @@ class _HomeScreenState extends State<HomeScreen>
                         itemCount:
                         games.length,
                         itemBuilder:
-                            (context, index) {
+                            (
+                            context,
+                            index,
+                            ) {
                           final game =
                           games[index];
 
@@ -433,6 +744,11 @@ class _HomeScreenState extends State<HomeScreen>
                             downloadProgress:
                             _downloadProgress,
                             onTap: () {
+                              if (_showLaunchSplash ||
+                                  _isDownloading) {
+                                return;
+                              }
+
                               setState(() {
                                 _selectedIndex =
                                     index;
@@ -459,6 +775,19 @@ class _HomeScreenState extends State<HomeScreen>
               ],
             ),
           ),
+
+          // ============================================================
+          // FULL-SCREEN GAME SPLASH
+          //
+          // LAST Stack child = above everything.
+          //
+          // Contains ONLY:
+          //   - dedicated splash image
+          //   - progress ring bottom-left
+          // ============================================================
+
+          if (_showLaunchSplash)
+            _buildLaunchSplash(),
         ],
       ),
     );
